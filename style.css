@@ -231,8 +231,41 @@ button, input, select { font: inherit; color: inherit; }
 
 .composer__submit { margin-top: 27px; }
 
+/* ---------- Панель инструментов ---------- */
+.toolbar {
+  display: grid;
+  grid-template-columns: 1fr auto auto;
+  align-items: end;
+  gap: 12px 16px;
+  margin: 24px 0 16px;
+}
+
+.toolbar .search { grid-column: 1; }
+.toolbar .segmented { grid-column: 2; }
+.toolbar .sort { grid-column: 3; }
+
+.sort { display: grid; gap: 4px; }
+
+.sort__label {
+  font-size: .78rem;
+  font-weight: 700;
+  color: var(--muted);
+}
+
+.sort__select {
+  min-height: 44px;
+  padding: 8px 38px 8px 12px;
+  border: 2px solid var(--carbon);
+  border-radius: 0;
+  background: var(--white) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8'%3E%3Cpath d='M1 1l5 5 5-5' fill='none' stroke='%2315151e' stroke-width='2'/%3E%3C/svg%3E") no-repeat right 12px center;
+  font-weight: 600;
+  appearance: none;
+  cursor: pointer;
+}
+
 /* ---------- Список задач ---------- */
 .tasks { margin-top: 24px; }
+.toolbar + .tasks { margin-top: 0; }
 
 .task-list {
   display: grid;
@@ -457,6 +490,14 @@ button, input, select { font: inherit; color: inherit; }
    Адаптивность
    ========================================================= */
 
+/* Планшет: поиск на отдельной строке */
+@media (max-width: 900px) {
+  .toolbar { grid-template-columns: 1fr auto; }
+  .toolbar .search { grid-column: 1 / -1; }
+  .toolbar .segmented { grid-column: 1; }
+  .toolbar .sort { grid-column: 2; }
+}
+
 /* Телефон */
 @media (max-width: 560px) {
   :root { --pad: 16px; --cut: 10px; }
@@ -466,6 +507,12 @@ button, input, select { font: inherit; color: inherit; }
 
   .composer { grid-template-columns: 1fr; }
   .composer__submit { margin-top: 4px; width: 100%; }
+
+  .toolbar { grid-template-columns: 1fr; margin-top: 18px; }
+  .toolbar .search,
+  .toolbar .segmented,
+  .toolbar .sort { grid-column: 1; }
+  .sort { grid-template-columns: auto 1fr; align-items: center; gap: 10px; }
 
   .task { gap: 8px; padding-right: 4px; }
   .task__title { font-size: 1rem; }

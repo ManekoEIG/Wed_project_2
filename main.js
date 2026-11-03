@@ -7,6 +7,13 @@
    ========================================================= */
 
 const STORAGE_KEY = 'pitlist-tasks';
+const UI_KEY = 'pitlist-ui';
+
+const SORTS = [
+  { value: 'manual', label: 'Мой порядок' },
+  { value: 'asc', label: 'Сначала ранние' },
+  { value: 'desc', label: 'Сначала поздние' },
+];
 
 /* =========================================================
    Утилиты для создания элементов
@@ -93,6 +100,14 @@ function describeDate(iso, done) {
   return { text: formatted, state: 'future' };
 }
 
+// Задачи без срока всегда в конце; при равных датах сохраняется ручной порядок
+const compareByDate = (direction) => (a, b) => {
+  if (!a.date && !b.date) return 0;
+  if (!a.date) return 1;
+  if (!b.date) return -1;
+  return direction === 'asc' ? a.date.localeCompare(b.date) : b.date.localeCompare(a.date);
+};
+
 /* =========================================================
    Задачи
    ========================================================= */
@@ -133,11 +148,32 @@ function saveTasks() {
   }
 }
 
+function loadUI() {
+  try {
+    const data = JSON.parse(localStorage.getItem(UI_KEY)) || {};
+    return {
+      sort: SORTS.some((s) => s.value === data.sort) ? data.sort : 'manual',
+    };
+  } catch {
+    return { sort: 'manual' };
+  }
+}
+
+function saveUI() {
+  try {
+    localStorage.setItem(UI_KEY, JSON.stringify(ui));
+  } catch {
+    /* не критично */
+  }
+}
+
 /* =========================================================
    Состояние
    ========================================================= */
 
 let tasks = loadTasks() || [];
+
+const ui = loadUI();
 let editingId = null;
 let pendingFocus = null; // { id, selector } — куда вернуть фокус после перерисовки
 let refs = null; // ссылки на элементы, заполняются в buildLayout()
@@ -203,6 +239,18 @@ function buildLayout() {
     el('h2', { className: 'visually-hidden', text: 'Новая задача', attrs: { id: 'composer-title' } }),
     composer);
 
+  /* ---------- Сортировка ---------- */
+  const sortSelect = el('select', { className: 'sort__select', attrs: { id: 'sort' } },
+    ...SORTS.map((s) => el('option', { text: s.label, attrs: { value: s.value } })));
+  sortSelect.value = ui.sort;
+
+  const sort = el('div', { className: 'sort' },
+    el('label', { className: 'sort__label', text: 'Сортировка по дате', attrs: { for: 'sort' } }),
+    sortSelect);
+
+  const toolbar = el('section', { className: 'toolbar', attrs: { 'aria-label': 'Работа со списком' } });
+  toolbar.append(sort);
+
   /* ---------- Список ---------- */
   const list = el('ul', { className: 'task-list', attrs: { id: 'task-list', 'aria-labelledby': 'list-title' } });
   const empty = el('div', { className: 'empty', attrs: { hidden: true } });
@@ -220,6 +268,7 @@ function buildLayout() {
   const toast = el('div', { className: 'toast', attrs: { role: 'status', 'aria-live': 'polite' } });
 
   const main = el('main', { className: 'app' }, composerSection);
+  main.append(toolbar);
   main.append(listSection);
 
   document.body.append(header, main, footer);
@@ -229,6 +278,7 @@ function buildLayout() {
     counter, composer, titleInput, dateInput, composerError, list, empty,
     toast,
     progressBar,
+    sortSelect,
   };
 }
 
@@ -237,7 +287,10 @@ function buildLayout() {
    ========================================================= */
 
 function getVisibleTasks() {
-  return tasks.slice();
+  let list = tasks.slice();
+
+  if (ui.sort !== 'manual') list = [...list].sort(compareByDate(ui.sort));
+  return list;
 }
 
 const visibleIds = () => [...refs.list.children].map((li) => li.dataset.id);
@@ -550,6 +603,13 @@ function setupEvents() {
   refs.list.addEventListener('dblclick', (event) => {
     const title = event.target.closest('.task__title');
     if (title) startEdit(title.closest('.task').dataset.id);
+  });
+
+  // Сортировка
+  refs.sortSelect.addEventListener('change', () => {
+    ui.sort = refs.sortSelect.value;
+    saveUI();
+    render();
   });
 
 }
