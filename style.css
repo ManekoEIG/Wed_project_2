@@ -280,6 +280,28 @@ button, input, select { font: inherit; color: inherit; }
 .icon-button:hover { background: var(--bg); color: var(--carbon); }
 .icon-button--danger:hover { color: var(--red); }
 
+/* Режим редактирования */
+.task__title { cursor: text; }
+
+.task--editing {
+  padding: 14px 16px 16px;
+  border-left-color: var(--carbon);
+}
+
+.task__edit {
+  flex: 1;
+  display: grid;
+  grid-template-columns: 1fr 180px;
+  gap: 12px;
+}
+
+.task__edit-actions {
+  grid-column: 1 / -1;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
 /* ---------- Пустой список ---------- */
 .empty {
   display: grid;
@@ -374,6 +396,10 @@ button, input, select { font: inherit; color: inherit; }
   .task { gap: 8px; padding-right: 4px; }
   .task__title { font-size: 1rem; }
   .icon-button { width: 36px; height: 36px; }
+
+  .task--editing { padding: 12px; }
+  .task__edit { grid-template-columns: 1fr; }
+  .task__edit-actions .button { flex: 1; }
 }
 
 @media (prefers-reduced-motion: reduce) {

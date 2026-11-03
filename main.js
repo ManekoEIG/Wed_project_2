@@ -31,6 +31,7 @@ function el(tag, props = {}, ...children) {
 }
 
 const ICONS = {
+  edit: 'M4 20h4L19 9l-4-4L4 16v4zM13.5 6.5l4 4',
   trash: 'M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3',
   plus: 'M12 5v14M5 12h14',
 };
@@ -102,6 +103,7 @@ function makeTask(title, date = '', done = false) {
    ========================================================= */
 
 let tasks = [];
+let editingId = null;
 let pendingFocus = null; // { id, selector } — куда вернуть фокус после перерисовки
 let refs = null; // ссылки на элементы, заполняются в buildLayout()
 
@@ -203,14 +205,22 @@ function getVisibleTasks() {
 const visibleIds = () => [...refs.list.children].map((li) => li.dataset.id);
 
 function createTaskItem(task) {
+  const isEditing = editingId === task.id;
   const info = describeDate(task.date, task.done);
 
   const classes = ['task'];
+  if (isEditing) classes.push('task--editing');
   if (info.state === 'overdue') classes.push('task--overdue');
 
   const item = el('li', { className: classes.join(' '), dataset: { id: task.id } });
 
+  if (isEditing) {
+    item.append(createEditForm(task));
+    return item;
+  }
+
   const title = el('p', { className: 'task__title', text: task.title });
+  title.title = 'Дважды щёлкните, чтобы изменить';
 
   const date = el(task.date ? 'time' : 'span', {
     className: `task__date task__date--${info.state}`,
@@ -222,6 +232,11 @@ function createTaskItem(task) {
 
   const actions = el('div', { className: 'task__actions' });
   actions.append(el('button', {
+    className: 'icon-button',
+    attrs: { type: 'button', title: 'Изменить', 'aria-label': `Изменить «${task.title}»` },
+    dataset: { action: 'edit' },
+  }, icon('edit')));
+  actions.append(el('button', {
     className: 'icon-button icon-button--danger',
     attrs: { type: 'button', title: 'Удалить', 'aria-label': `Удалить «${task.title}»` },
     dataset: { action: 'delete' },
@@ -229,6 +244,68 @@ function createTaskItem(task) {
 
   item.append(body, actions);
   return item;
+}
+
+function createEditForm(task) {
+  const titleId = `edit-title-${task.id}`;
+  const dateId = `edit-date-${task.id}`;
+  const errorId = `edit-error-${task.id}`;
+
+  const titleInput = el('input', {
+    className: 'field__input',
+    attrs: { id: titleId, type: 'text', maxlength: '120', required: true, autocomplete: 'off', 'aria-describedby': errorId },
+  });
+  titleInput.value = task.title;
+
+  const dateInput = el('input', { className: 'field__input', attrs: { id: dateId, type: 'date' } });
+  dateInput.value = task.date;
+
+  const error = el('p', { className: 'field__error', attrs: { id: errorId, 'aria-live': 'polite' } });
+
+  const form = el('form', {
+    className: 'task__edit',
+    attrs: { novalidate: true, 'aria-label': `Редактирование задачи «${task.title}»` },
+  },
+    el('div', { className: 'field field--grow' },
+      el('label', { className: 'field__label', text: 'Название', attrs: { for: titleId } }),
+      titleInput,
+      error),
+    el('div', { className: 'field field--date' },
+      el('label', { className: 'field__label', text: 'Срок', attrs: { for: dateId } }),
+      dateInput),
+    el('div', { className: 'task__edit-actions' },
+      el('button', { className: 'button button--primary', text: 'Сохранить', attrs: { type: 'submit' } }),
+      el('button', { className: 'button button--ghost', text: 'Отмена', attrs: { type: 'button' }, dataset: { action: 'cancel' } })));
+
+  form.addEventListener('submit', (event) => {
+    event.preventDefault();
+    const title = titleInput.value.trim();
+    if (!title) {
+      error.textContent = 'Название не может быть пустым';
+      titleInput.setAttribute('aria-invalid', 'true');
+      titleInput.focus();
+      return;
+    }
+    updateTask(task.id, { title, date: dateInput.value });
+    editingId = null;
+    pendingFocus = { id: task.id, selector: '[data-action="edit"]' };
+    render();
+    showToast('Изменения сохранены');
+  });
+
+  titleInput.addEventListener('input', () => {
+    error.textContent = '';
+    titleInput.removeAttribute('aria-invalid');
+  });
+
+  form.addEventListener('keydown', (event) => {
+    if (event.key === 'Escape') {
+      event.preventDefault();
+      cancelEdit(task.id);
+    }
+  });
+
+  return form;
 }
 
 function renderEmptyState(visibleCount) {
@@ -282,6 +359,12 @@ function addTask(title, date) {
   showToast('Задача добавлена');
 }
 
+function updateTask(id, changes) {
+  const task = tasks.find((t) => t.id === id);
+  if (!task) return;
+  Object.assign(task, changes);
+}
+
 function deleteTask(id) {
   const index = tasks.findIndex((t) => t.id === id);
   if (index === -1) return;
@@ -293,6 +376,7 @@ function deleteTask(id) {
   if (neighbourId) pendingFocus = { id: neighbourId, selector: '[data-action="delete"]' };
 
   const [removed] = tasks.splice(index, 1);
+  if (editingId === id) editingId = null;
   render();
 
   showToast(`Задача «${shorten(removed.title)}» удалена`, {
@@ -303,6 +387,18 @@ function deleteTask(id) {
       render();
     },
   });
+}
+
+function startEdit(id) {
+  editingId = id;
+  pendingFocus = { id, selector: 'input[type="text"]' };
+  render();
+}
+
+function cancelEdit(id) {
+  editingId = null;
+  pendingFocus = { id, selector: '[data-action="edit"]' };
+  render();
 }
 
 /* =========================================================
@@ -369,7 +465,15 @@ function setupEvents() {
     if (!button || !item) return;
     const { id } = item.dataset;
 
+    if (button.dataset.action === 'edit') startEdit(id);
     if (button.dataset.action === 'delete') deleteTask(id);
+    if (button.dataset.action === 'cancel') cancelEdit(id);
+  });
+
+  // Редактирование двойным щелчком по названию
+  refs.list.addEventListener('dblclick', (event) => {
+    const title = event.target.closest('.task__title');
+    if (title) startEdit(title.closest('.task').dataset.id);
   });
 
 }
