@@ -6,6 +6,8 @@
    стили, разметка и вся логика создаются здесь через DOM API.
    ========================================================= */
 
+const STORAGE_KEY = 'pitlist-tasks';
+
 /* =========================================================
    Утилиты для создания элементов
    ========================================================= */
@@ -100,10 +102,42 @@ function makeTask(title, date = '', done = false) {
 }
 
 /* =========================================================
+   Хранилище
+   ========================================================= */
+
+function loadTasks() {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (raw === null) return null; // первый запуск
+    const data = JSON.parse(raw);
+    if (!Array.isArray(data)) return [];
+    return data
+      .filter((t) => t && typeof t.id === 'string' && typeof t.title === 'string' && t.title.trim())
+      .map((t) => ({
+        id: t.id,
+        title: t.title.slice(0, 200),
+        date: /^\d{4}-\d{2}-\d{2}$/.test(t.date) ? t.date : '',
+        done: Boolean(t.done),
+        createdAt: Number(t.createdAt) || Date.now(),
+      }));
+  } catch {
+    return [];
+  }
+}
+
+function saveTasks() {
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(tasks));
+  } catch {
+    showToast('Не удалось сохранить: хранилище браузера недоступно');
+  }
+}
+
+/* =========================================================
    Состояние
    ========================================================= */
 
-let tasks = [];
+let tasks = loadTasks() || [];
 let editingId = null;
 let pendingFocus = null; // { id, selector } — куда вернуть фокус после перерисовки
 let refs = null; // ссылки на элементы, заполняются в buildLayout()
@@ -179,7 +213,7 @@ function buildLayout() {
     empty);
 
   /* ---------- Подвал ---------- */
-  const footerText = 'Пит-лист — учебный проект на чистом JavaScript.';
+  const footerText = 'Задачи сохраняются в этом браузере.';
   const footerInner = el('div', { className: 'app-footer__inner' }, el('p', { text: footerText }));
   const footer = el('footer', { className: 'app-footer' }, footerInner);
 
@@ -378,6 +412,7 @@ function addTask(title, date) {
   const task = makeTask(title, date);
   tasks.unshift(task);
 
+  saveTasks();
   render();
   showToast('Задача добавлена');
 }
@@ -386,12 +421,14 @@ function updateTask(id, changes) {
   const task = tasks.find((t) => t.id === id);
   if (!task) return;
   Object.assign(task, changes);
+  saveTasks();
 }
 
 function toggleTask(id) {
   const task = tasks.find((t) => t.id === id);
   if (!task) return;
   task.done = !task.done;
+  saveTasks();
   pendingFocus = { id, selector: '[data-action="toggle"]' };
   render();
   if (task.done) showToast('Задача выполнена');
@@ -409,12 +446,14 @@ function deleteTask(id) {
 
   const [removed] = tasks.splice(index, 1);
   if (editingId === id) editingId = null;
+  saveTasks();
   render();
 
   showToast(`Задача «${shorten(removed.title)}» удалена`, {
     label: 'Отменить',
     run: () => {
       tasks.splice(Math.min(index, tasks.length), 0, removed);
+      saveTasks();
       pendingFocus = { id: removed.id, selector: '[data-action="delete"]' };
       render();
     },
