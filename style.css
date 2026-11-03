@@ -151,6 +151,22 @@ button, input, select { font: inherit; color: inherit; }
   font-weight: 500;
 }
 
+/* Полоса прогресса: ширина задаётся из JS */
+.progress {
+  height: 8px;
+  margin-top: 16px;
+  background: var(--carbon-2);
+  overflow: hidden;
+}
+
+.progress__bar {
+  display: block;
+  width: 0;
+  height: 100%;
+  background: repeating-linear-gradient(115deg, var(--red) 0 10px, var(--red-dark) 10px 14px);
+  transition: width .35s ease;
+}
+
 .kerb {
   height: 10px;
   background: repeating-linear-gradient(90deg, var(--red) 0 40px, var(--white) 40px 80px);
@@ -279,6 +295,64 @@ button, input, select { font: inherit; color: inherit; }
 
 .icon-button:hover { background: var(--bg); color: var(--carbon); }
 .icon-button--danger:hover { color: var(--red); }
+
+/* Галочка: при выполнении превращается в клетчатый флаг */
+.task__check {
+  position: relative;
+  width: 26px;
+  height: 26px;
+  flex: none;
+}
+
+.task__checkbox {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  opacity: 0;
+  cursor: pointer;
+}
+
+.task__checkmark {
+  display: grid;
+  place-items: center;
+  width: 100%;
+  height: 100%;
+  border: 2px solid var(--carbon);
+  background: var(--white);
+  pointer-events: none;
+}
+
+.task__checkmark .icon {
+  width: 16px;
+  height: 16px;
+  stroke-width: 3;
+  opacity: 0;
+}
+
+.task__check:hover .task__checkbox:not(:checked) + .task__checkmark .icon { opacity: .3; }
+
+.task__checkbox:checked + .task__checkmark {
+  background: conic-gradient(var(--carbon) 25%, var(--white) 0 50%, var(--carbon) 0 75%, var(--white) 0) 0 0 / 11px 11px;
+}
+
+.task__checkbox:focus-visible + .task__checkmark {
+  outline: 3px solid var(--red);
+  outline-offset: 2px;
+}
+
+/* Выполненная задача */
+.task--done { border-left-color: transparent; }
+
+.task--done .task__title {
+  color: var(--soft);
+  text-decoration: line-through;
+  text-decoration-color: var(--red);
+  text-decoration-thickness: 2px;
+}
+
+.task--done .task__date { color: var(--soft); font-weight: 400; }
 
 /* Режим редактирования */
 .task__title { cursor: text; }

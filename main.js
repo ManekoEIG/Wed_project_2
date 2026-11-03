@@ -33,6 +33,7 @@ function el(tag, props = {}, ...children) {
 const ICONS = {
   edit: 'M4 20h4L19 9l-4-4L4 16v4zM13.5 6.5l4 4',
   trash: 'M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3',
+  check: 'M5 12.5l4.5 4.5L19 7',
   plus: 'M12 5v14M5 12h14',
 };
 
@@ -128,6 +129,7 @@ function connectStyles() {
 function buildLayout() {
   /* ---------- Шапка ---------- */
   const counter = el('p', { className: 'app-header__counter', attrs: { 'aria-live': 'polite' } });
+  const progressBar = el('span', { className: 'progress__bar' });
 
   const headerInner = el('div', { className: 'app-header__inner' },
     el('p', { className: 'brand' },
@@ -135,6 +137,7 @@ function buildLayout() {
       el('span', { className: 'brand__text', text: 'Пит-лист' })),
     el('h1', { className: 'app-title', text: 'Мои задачи' }),
     counter);
+  headerInner.append(el('div', { className: 'progress', attrs: { 'aria-hidden': 'true' } }, progressBar));
 
   const header = el('header', { className: 'app-header' },
     headerInner,
@@ -191,6 +194,7 @@ function buildLayout() {
   return {
     counter, composer, titleInput, dateInput, composerError, list, empty,
     toast,
+    progressBar,
   };
 }
 
@@ -209,6 +213,7 @@ function createTaskItem(task) {
   const info = describeDate(task.date, task.done);
 
   const classes = ['task'];
+  if (task.done) classes.push('task--done');
   if (isEditing) classes.push('task--editing');
   if (info.state === 'overdue') classes.push('task--overdue');
 
@@ -218,6 +223,17 @@ function createTaskItem(task) {
     item.append(createEditForm(task));
     return item;
   }
+
+  const checkbox = el('input', {
+    className: 'task__checkbox',
+    attrs: { type: 'checkbox', 'aria-label': `Выполнено: ${task.title}` },
+    dataset: { action: 'toggle' },
+  });
+  checkbox.checked = task.done;
+
+  const check = el('label', { className: 'task__check' },
+    checkbox,
+    el('span', { className: 'task__checkmark', attrs: { 'aria-hidden': 'true' } }, icon('check')));
 
   const title = el('p', { className: 'task__title', text: task.title });
   title.title = 'Дважды щёлкните, чтобы изменить';
@@ -242,6 +258,7 @@ function createTaskItem(task) {
     dataset: { action: 'delete' },
   }, icon('trash')));
 
+  item.append(check);
   item.append(body, actions);
   return item;
 }
@@ -323,9 +340,15 @@ function renderEmptyState(visibleCount) {
 
 function renderHeader() {
   const total = tasks.length;
-  refs.counter.textContent = total
-    ? `Всего ${total} ${plural(total, ['задача', 'задачи', 'задач'])}`
-    : 'Задач пока нет';
+  const done = tasks.filter((t) => t.done).length;
+  const active = total - done;
+
+  if (total === 0) refs.counter.textContent = 'Задач пока нет';
+  else if (active === 0) refs.counter.textContent = `Всё выполнено: ${total} ${plural(total, ['задача', 'задачи', 'задач'])}`;
+  else refs.counter.textContent = `Осталось ${active} из ${total}`;
+
+  // Ширина полосы прогресса задаётся из JS
+  refs.progressBar.style.width = `${total ? Math.round((done / total) * 100) : 0}%`;
 
 }
 
@@ -363,6 +386,15 @@ function updateTask(id, changes) {
   const task = tasks.find((t) => t.id === id);
   if (!task) return;
   Object.assign(task, changes);
+}
+
+function toggleTask(id) {
+  const task = tasks.find((t) => t.id === id);
+  if (!task) return;
+  task.done = !task.done;
+  pendingFocus = { id, selector: '[data-action="toggle"]' };
+  render();
+  if (task.done) showToast('Задача выполнена');
 }
 
 function deleteTask(id) {
@@ -468,6 +500,11 @@ function setupEvents() {
     if (button.dataset.action === 'edit') startEdit(id);
     if (button.dataset.action === 'delete') deleteTask(id);
     if (button.dataset.action === 'cancel') cancelEdit(id);
+  });
+
+  // Отметка «выполнено»
+  refs.list.addEventListener('change', (event) => {
+    if (event.target.matches('[data-action="toggle"]')) toggleTask(event.target.closest('.task').dataset.id);
   });
 
   // Редактирование двойным щелчком по названию
