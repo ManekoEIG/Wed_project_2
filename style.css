@@ -305,6 +305,30 @@ button, input, select { font: inherit; color: inherit; }
 
 .segmented__button[aria-pressed="true"] .segmented__count { background: var(--red); color: var(--white); }
 
+/* Поиск */
+.search { position: relative; }
+
+.search .icon {
+  position: absolute;
+  top: 50%;
+  left: 12px;
+  color: var(--soft);
+  transform: translateY(-50%);
+  pointer-events: none;
+}
+
+.search__input {
+  width: 100%;
+  min-height: 44px;
+  padding: 8px 12px 8px 42px;
+  border: none;
+  border-bottom: 2px solid #b9b9bf;
+  border-radius: 0;
+  background: var(--white);
+}
+
+.search__input:focus { outline: none; border-bottom-color: var(--carbon); }
+
 /* ---------- Список задач ---------- */
 .tasks { margin-top: 24px; }
 .toolbar + .tasks { margin-top: 0; }
@@ -370,6 +394,12 @@ button, input, select { font: inherit; color: inherit; }
 
 .icon-button:hover { background: var(--bg); color: var(--carbon); }
 .icon-button--danger:hover { color: var(--red); }
+
+.task__title mark {
+  padding: 0 1px;
+  background: rgba(225, 6, 0, .16);
+  color: inherit;
+}
 
 /* Галочка: при выполнении превращается в клетчатый флаг */
 .task__check {

@@ -49,6 +49,7 @@ const ICONS = {
   edit: 'M4 20h4L19 9l-4-4L4 16v4zM13.5 6.5l4 4',
   trash: 'M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3',
   check: 'M5 12.5l4.5 4.5L19 7',
+  search: 'M11 18a7 7 0 1 0 0-14 7 7 0 0 0 0 14zM20 20l-4.2-4.2',
   plus: 'M12 5v14M5 12h14',
 };
 
@@ -181,6 +182,7 @@ function saveUI() {
 let tasks = loadTasks() || [];
 
 const ui = loadUI();
+let query = '';
 let editingId = null;
 let pendingFocus = null; // { id, selector } — куда вернуть фокус после перерисовки
 let refs = null; // ссылки на элементы, заполняются в buildLayout()
@@ -246,6 +248,16 @@ function buildLayout() {
     el('h2', { className: 'visually-hidden', text: 'Новая задача', attrs: { id: 'composer-title' } }),
     composer);
 
+  /* ---------- Поиск ---------- */
+  const searchInput = el('input', {
+    className: 'search__input',
+    attrs: { id: 'search', type: 'search', placeholder: 'Поиск по названию', autocomplete: 'off' },
+  });
+  const search = el('div', { className: 'search', attrs: { role: 'search' } },
+    el('label', { className: 'visually-hidden', text: 'Поиск по названию', attrs: { for: 'search' } }),
+    icon('search'),
+    searchInput);
+
   /* ---------- Фильтр по статусу ---------- */
   const filterButtons = FILTERS.map((f) => el('button', {
     className: 'segmented__button',
@@ -266,6 +278,7 @@ function buildLayout() {
     sortSelect);
 
   const toolbar = el('section', { className: 'toolbar', attrs: { 'aria-label': 'Работа со списком' } });
+  toolbar.append(search);
   toolbar.append(filters);
   toolbar.append(sort);
 
@@ -298,6 +311,7 @@ function buildLayout() {
     progressBar,
     sortSelect,
     filterButtons,
+    searchInput,
   };
 }
 
@@ -308,11 +322,33 @@ function buildLayout() {
 function getVisibleTasks() {
   let list = tasks.filter((t) => ui.filter === 'all' || (ui.filter === 'done') === t.done);
 
+  const needle = query.trim().toLowerCase();
+  if (needle) list = list.filter((t) => t.title.toLowerCase().includes(needle));
+
   if (ui.sort !== 'manual') list = [...list].sort(compareByDate(ui.sort));
   return list;
 }
 
 const visibleIds = () => [...refs.list.children].map((li) => li.dataset.id);
+
+// Подсветка найденного текста через <mark>
+function highlight(text) {
+  const needle = query.trim().toLowerCase();
+  if (!needle) return [document.createTextNode(text)];
+
+  const parts = [];
+  const lower = text.toLowerCase();
+  let index = 0;
+  let found = lower.indexOf(needle);
+  while (found !== -1) {
+    if (found > index) parts.push(document.createTextNode(text.slice(index, found)));
+    parts.push(el('mark', { text: text.slice(found, found + needle.length) }));
+    index = found + needle.length;
+    found = lower.indexOf(needle, index);
+  }
+  if (index < text.length) parts.push(document.createTextNode(text.slice(index)));
+  return parts;
+}
 
 function createTaskItem(task) {
   const isEditing = editingId === task.id;
@@ -341,7 +377,7 @@ function createTaskItem(task) {
     checkbox,
     el('span', { className: 'task__checkmark', attrs: { 'aria-hidden': 'true' } }, icon('check')));
 
-  const title = el('p', { className: 'task__title', text: task.title });
+  const title = el('p', { className: 'task__title' }, ...highlight(task.title));
   title.title = 'Дважды щёлкните, чтобы изменить';
 
   const date = el(task.date ? 'time' : 'span', {
@@ -449,6 +485,7 @@ function renderEmptyState(visibleCount) {
   const filterNames = { active: 'активных ', done: 'выполненных ' };
   let text = 'Нет задач, подходящих под условия.';
   if (ui.filter !== 'all') text = `Нет ${filterNames[ui.filter]}задач.`;
+  if (query.trim()) text = `Нет ${filterNames[ui.filter] || ''}задач со словом «${query.trim()}».`;
 
   refs.empty.replaceChildren(
     el('p', { className: 'empty__title', text: 'Ничего не найдено' }),
@@ -510,6 +547,10 @@ function addTask(title, date) {
 
   // Чтобы новая задача не пропала из вида
   if (ui.filter === 'done') ui.filter = 'all';
+  if (query && !title.toLowerCase().includes(query.trim().toLowerCase())) {
+    query = '';
+    refs.searchInput.value = '';
+  }
 
   saveTasks();
   saveUI();
@@ -573,9 +614,12 @@ function cancelEdit(id) {
 }
 
 function resetView() {
+  query = '';
+  refs.searchInput.value = '';
   ui.filter = 'all';
   saveUI();
   render();
+  refs.searchInput.focus();
 }
 
 /* =========================================================
@@ -656,6 +700,20 @@ function setupEvents() {
   refs.list.addEventListener('dblclick', (event) => {
     const title = event.target.closest('.task__title');
     if (title) startEdit(title.closest('.task').dataset.id);
+  });
+
+  // Поиск
+  refs.searchInput.addEventListener('input', () => {
+    query = refs.searchInput.value;
+    render();
+  });
+
+  refs.searchInput.addEventListener('keydown', (event) => {
+    if (event.key === 'Escape' && refs.searchInput.value) {
+      refs.searchInput.value = '';
+      query = '';
+      render();
+    }
   });
 
   // Фильтр
