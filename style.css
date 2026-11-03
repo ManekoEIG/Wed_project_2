@@ -1,0 +1,279 @@
+/* =========================================================
+   Пит-лист — стили. Подключаются из main.js.
+   ========================================================= */
+
+:root {
+  --carbon: #15151e;
+  --carbon-2: #1f1f2b;
+  --red: #e10600;
+  --red-dark: #b80500;
+  --white: #ffffff;
+  --bg: #f4f4f4;
+  --field: #f4f4f4;
+  --muted: #67676d;
+  --soft: #9a9aa2;
+  --line: #e1e1e3;
+
+  --font: "Exo 2", "Segoe UI", Roboto, Arial, sans-serif;
+  --max: 880px;
+  --pad: 24px;
+  --cut: 14px;
+
+  color-scheme: light;
+}
+
+/* ---------- База ---------- */
+*,
+*::before,
+*::after { box-sizing: border-box; }
+
+html { -webkit-text-size-adjust: 100%; }
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  background: var(--bg);
+  color: var(--carbon);
+  font: 400 1rem/1.5 var(--font);
+  -webkit-font-smoothing: antialiased;
+}
+
+h1, h2, p { margin: 0; }
+
+button, input, select { font: inherit; color: inherit; }
+
+:focus-visible {
+  outline: 3px solid var(--red);
+  outline-offset: 2px;
+}
+
+[hidden] { display: none !important; }
+
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
+
+.icon {
+  width: 20px;
+  height: 20px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  flex: none;
+}
+
+/* ---------- Кнопки ---------- */
+.button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 46px;
+  padding: 10px 24px;
+  border: 2px solid transparent;
+  border-radius: 0;
+  font-weight: 700;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: background-color .15s, color .15s;
+}
+
+.button--primary {
+  background: var(--red);
+  color: var(--white);
+  clip-path: polygon(10px 0, 100% 0, calc(100% - 10px) 100%, 0 100%);
+}
+
+.button--primary:hover { background: var(--red-dark); }
+
+.button--ghost {
+  background: transparent;
+  border-color: var(--carbon);
+}
+
+.button--ghost:hover { background: var(--carbon); color: var(--white); }
+
+/* ---------- Шапка ---------- */
+.app-header {
+  background:
+    repeating-linear-gradient(115deg, transparent 0 80px, rgba(255, 255, 255, .03) 80px 82px),
+    var(--carbon);
+  color: var(--white);
+  border-top: 4px solid var(--red);
+}
+
+.app-header__inner {
+  max-width: calc(var(--max) + var(--pad) * 2);
+  margin: 0 auto;
+  padding: 24px var(--pad) 28px;
+}
+
+.brand {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 18px;
+}
+
+.brand__mark {
+  width: 30px;
+  height: 20px;
+  background: var(--red);
+  clip-path: polygon(30% 0, 100% 0, 70% 100%, 0 100%);
+}
+
+.brand__text {
+  font-size: 1.25rem;
+  font-style: italic;
+  font-weight: 900;
+}
+
+.app-title {
+  font-size: clamp(2.2rem, 7vw, 3.6rem);
+  font-style: italic;
+  font-weight: 900;
+  line-height: 1;
+  letter-spacing: -.02em;
+}
+
+.app-header__counter {
+  margin-top: 10px;
+  color: #c9c9d0;
+  font-weight: 500;
+}
+
+.kerb {
+  height: 10px;
+  background: repeating-linear-gradient(90deg, var(--red) 0 40px, var(--white) 40px 80px);
+}
+
+/* ---------- Основная колонка ---------- */
+.app {
+  flex: 1;
+  width: 100%;
+  max-width: calc(var(--max) + var(--pad) * 2);
+  margin: 0 auto;
+  padding: 28px var(--pad) 40px;
+}
+
+.panel {
+  padding: 18px 20px 20px;
+  background: var(--white);
+  clip-path: polygon(0 0, calc(100% - var(--cut)) 0, 100% var(--cut), 100% 100%, 0 100%);
+}
+
+/* ---------- Поля ---------- */
+.field { display: grid; gap: 6px; min-width: 0; }
+
+.field__label {
+  font-size: .85rem;
+  font-weight: 700;
+}
+
+.field__input {
+  width: 100%;
+  min-height: 46px;
+  padding: 10px 12px;
+  border: none;
+  border-bottom: 2px solid #b9b9bf;
+  border-radius: 0;
+  background: var(--field);
+  transition: border-color .15s;
+}
+
+.field__input:focus {
+  outline: none;
+  border-bottom-color: var(--carbon);
+}
+
+.field__input[aria-invalid="true"] { border-bottom-color: var(--red); }
+
+.field__error {
+  color: var(--red);
+  font-size: .85rem;
+  font-weight: 600;
+}
+
+.field__error:empty { display: none; }
+
+/* ---------- Форма новой задачи ---------- */
+.composer {
+  display: grid;
+  grid-template-columns: 1fr 180px auto;
+  align-items: start;
+  gap: 12px;
+}
+
+.composer__submit { margin-top: 27px; }
+
+/* ---------- Список задач ---------- */
+.tasks { margin-top: 24px; }
+
+/* ---------- Пустой список ---------- */
+.empty {
+  display: grid;
+  justify-items: center;
+  gap: 6px;
+  padding: 44px 20px;
+  background: var(--white);
+  color: var(--muted);
+  text-align: center;
+}
+
+.empty__title {
+  color: var(--carbon);
+  font-size: 1.3rem;
+  font-style: italic;
+  font-weight: 800;
+}
+
+.empty .button { margin-top: 12px; }
+
+/* ---------- Подвал ---------- */
+.app-footer {
+  border-top: 1px solid var(--line);
+  color: var(--muted);
+  font-size: .9rem;
+}
+
+.app-footer__inner {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px 16px;
+  max-width: calc(var(--max) + var(--pad) * 2);
+  margin: 0 auto;
+  padding: 18px var(--pad) 24px;
+}
+
+/* =========================================================
+   Адаптивность
+   ========================================================= */
+
+/* Телефон */
+@media (max-width: 560px) {
+  :root { --pad: 16px; --cut: 10px; }
+
+  .app { padding-top: 20px; }
+  .panel { padding: 14px 14px 16px; }
+
+  .composer { grid-template-columns: 1fr; }
+  .composer__submit { margin-top: 4px; width: 100%; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: .01ms !important;
+    transition-duration: .01ms !important;
+  }
+}

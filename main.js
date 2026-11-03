@@ -64,6 +64,7 @@ function connectStyles() {
       rel: 'stylesheet',
       href: 'https://fonts.googleapis.com/css2?family=Exo+2:ital,wght@0,400;0,500;0,600;0,700;1,800;1,900&display=swap',
     },
+    { rel: 'stylesheet', href: 'style.css' },
   ];
   links.forEach((attrs) => document.head.append(el('link', { attrs })));
   document.head.append(el('meta', { attrs: { name: 'theme-color', content: '#15151e' } }));
