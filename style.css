@@ -218,6 +218,68 @@ button, input, select { font: inherit; color: inherit; }
 /* ---------- Список задач ---------- */
 .tasks { margin-top: 24px; }
 
+.task-list {
+  display: grid;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.task {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 8px 10px 14px;
+  background: var(--white);
+  border-left: 4px solid transparent;
+  clip-path: polygon(0 0, calc(100% - var(--cut)) 0, 100% var(--cut), 100% 100%, 0 100%);
+  transition: opacity .15s;
+}
+
+.task--overdue { border-left-color: var(--red); }
+
+.task__body {
+  flex: 1;
+  min-width: 0;
+}
+
+.task__title {
+  font-size: 1.05rem;
+  font-weight: 600;
+  line-height: 1.35;
+  overflow-wrap: anywhere;
+}
+
+.task__date {
+  display: block;
+  margin-top: 2px;
+  color: var(--muted);
+  font-size: .85rem;
+}
+
+.task__date--none { color: var(--soft); }
+.task__date--today,
+.task__date--soon { color: var(--carbon); font-weight: 700; }
+.task__date--overdue { color: var(--red); font-weight: 700; }
+
+.task__actions { display: flex; gap: 2px; flex: none; }
+
+.icon-button {
+  width: 40px;
+  height: 40px;
+  display: grid;
+  place-items: center;
+  padding: 0;
+  border: none;
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+}
+
+.icon-button:hover { background: var(--bg); color: var(--carbon); }
+.icon-button--danger:hover { color: var(--red); }
+
 /* ---------- Пустой список ---------- */
 .empty {
   display: grid;
@@ -256,6 +318,45 @@ button, input, select { font: inherit; color: inherit; }
   padding: 18px var(--pad) 24px;
 }
 
+/* ---------- Уведомление ---------- */
+.toast {
+  position: fixed;
+  left: 50%;
+  bottom: 24px;
+  z-index: 10;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  width: max-content;
+  max-width: calc(100% - 32px);
+  padding: 12px 18px;
+  background: var(--carbon);
+  border-left: 5px solid var(--red);
+  color: var(--white);
+  font-weight: 500;
+  transform: translate(-50%, 160%);
+  opacity: 0;
+  pointer-events: none;
+  transition: transform .25s ease, opacity .25s ease;
+}
+
+.toast--visible {
+  transform: translate(-50%, 0);
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.toast__action {
+  padding: 4px 8px;
+  border: none;
+  background: transparent;
+  color: #ff6b66;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.toast__action:hover { color: var(--white); }
+
 /* =========================================================
    Адаптивность
    ========================================================= */
@@ -269,6 +370,10 @@ button, input, select { font: inherit; color: inherit; }
 
   .composer { grid-template-columns: 1fr; }
   .composer__submit { margin-top: 4px; width: 100%; }
+
+  .task { gap: 8px; padding-right: 4px; }
+  .task__title { font-size: 1rem; }
+  .icon-button { width: 36px; height: 36px; }
 }
 
 @media (prefers-reduced-motion: reduce) {

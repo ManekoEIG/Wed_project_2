@@ -31,6 +31,7 @@ function el(tag, props = {}, ...children) {
 }
 
 const ICONS = {
+  trash: 'M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3',
   plus: 'M12 5v14M5 12h14',
 };
 
@@ -46,10 +47,62 @@ function icon(name) {
   return svg;
 }
 
+function plural(n, forms) {
+  const mod10 = n % 10;
+  const mod100 = n % 100;
+  if (mod10 === 1 && mod100 !== 11) return forms[0];
+  if (mod10 >= 2 && mod10 <= 4 && (mod100 < 12 || mod100 > 14)) return forms[1];
+  return forms[2];
+}
+
+const shorten = (text, max = 40) => (text.length > max ? `${text.slice(0, max - 1)}…` : text);
+
+const createId = () => `t${Date.now().toString(36)}${Math.random().toString(36).slice(2, 7)}`;
+
+/* =========================================================
+   Даты (храним в формате ГГГГ-ММ-ДД, как у <input type="date">)
+   ========================================================= */
+
+const toISO = (d) =>
+  `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+
+const todayISO = () => toISO(new Date());
+
+function parseISO(iso) {
+  const [y, m, d] = iso.split('-').map(Number);
+  return new Date(y, m - 1, d);
+}
+
+function describeDate(iso, done) {
+  if (!iso) return { text: 'Без срока', state: 'none' };
+
+  const date = parseISO(iso);
+  const diff = Math.round((date - parseISO(todayISO())) / 86400000);
+  const sameYear = date.getFullYear() === new Date().getFullYear();
+  const formatted = date.toLocaleDateString('ru-RU', sameYear
+    ? { day: 'numeric', month: 'long' }
+    : { day: 'numeric', month: 'long', year: 'numeric' });
+
+  if (diff === 0) return { text: `Сегодня, ${formatted}`, state: 'today' };
+  if (diff === 1) return { text: `Завтра, ${formatted}`, state: 'soon' };
+  if (diff < 0 && !done) return { text: `Просрочено: ${formatted}`, state: 'overdue' };
+  return { text: formatted, state: 'future' };
+}
+
+/* =========================================================
+   Задачи
+   ========================================================= */
+
+function makeTask(title, date = '', done = false) {
+  return { id: createId(), title, date, done, createdAt: Date.now() };
+}
+
 /* =========================================================
    Состояние
    ========================================================= */
 
+let tasks = [];
+let pendingFocus = null; // { id, selector } — куда вернуть фокус после перерисовки
 let refs = null; // ссылки на элементы, заполняются в buildLayout()
 
 /* =========================================================
@@ -125,14 +178,200 @@ function buildLayout() {
   const footerInner = el('div', { className: 'app-footer__inner' }, el('p', { text: footerText }));
   const footer = el('footer', { className: 'app-footer' }, footerInner);
 
+  const toast = el('div', { className: 'toast', attrs: { role: 'status', 'aria-live': 'polite' } });
+
   const main = el('main', { className: 'app' }, composerSection);
   main.append(listSection);
 
   document.body.append(header, main, footer);
+  document.body.append(toast);
 
   return {
     counter, composer, titleInput, dateInput, composerError, list, empty,
+    toast,
   };
+}
+
+/* =========================================================
+   Отрисовка
+   ========================================================= */
+
+function getVisibleTasks() {
+  return tasks.slice();
+}
+
+const visibleIds = () => [...refs.list.children].map((li) => li.dataset.id);
+
+function createTaskItem(task) {
+  const info = describeDate(task.date, task.done);
+
+  const classes = ['task'];
+  if (info.state === 'overdue') classes.push('task--overdue');
+
+  const item = el('li', { className: classes.join(' '), dataset: { id: task.id } });
+
+  const title = el('p', { className: 'task__title', text: task.title });
+
+  const date = el(task.date ? 'time' : 'span', {
+    className: `task__date task__date--${info.state}`,
+    text: info.text,
+    attrs: task.date ? { datetime: task.date } : {},
+  });
+
+  const body = el('div', { className: 'task__body' }, title, date);
+
+  const actions = el('div', { className: 'task__actions' });
+  actions.append(el('button', {
+    className: 'icon-button icon-button--danger',
+    attrs: { type: 'button', title: 'Удалить', 'aria-label': `Удалить «${task.title}»` },
+    dataset: { action: 'delete' },
+  }, icon('trash')));
+
+  item.append(body, actions);
+  return item;
+}
+
+function renderEmptyState(visibleCount) {
+  if (visibleCount > 0) {
+    refs.empty.hidden = true;
+    refs.empty.replaceChildren();
+    return;
+  }
+
+  refs.empty.hidden = false;
+  refs.empty.replaceChildren(
+    el('p', { className: 'empty__title', text: 'Список пуст' }),
+    el('p', { text: 'Добавьте первую задачу в форме выше.' }));
+}
+
+function renderHeader() {
+  const total = tasks.length;
+  refs.counter.textContent = total
+    ? `Всего ${total} ${plural(total, ['задача', 'задачи', 'задач'])}`
+    : 'Задач пока нет';
+
+}
+
+function render() {
+  const visible = getVisibleTasks();
+  refs.list.replaceChildren(...visible.map(createTaskItem));
+
+  renderEmptyState(visible.length);
+  renderHeader();
+
+  if (pendingFocus) {
+    const { id, selector } = pendingFocus;
+    pendingFocus = null;
+    const target = refs.list.querySelector(`[data-id="${id}"] ${selector}`);
+    if (target) {
+      target.focus();
+      if (target.select && target.type === 'text') target.select();
+    }
+  }
+}
+
+/* =========================================================
+   Действия с задачами
+   ========================================================= */
+
+function addTask(title, date) {
+  const task = makeTask(title, date);
+  tasks.unshift(task);
+
+  render();
+  showToast('Задача добавлена');
+}
+
+function deleteTask(id) {
+  const index = tasks.findIndex((t) => t.id === id);
+  if (index === -1) return;
+
+  // Фокус переходит на соседнюю задачу
+  const ids = visibleIds();
+  const position = ids.indexOf(id);
+  const neighbourId = ids[position + 1] ?? ids[position - 1];
+  if (neighbourId) pendingFocus = { id: neighbourId, selector: '[data-action="delete"]' };
+
+  const [removed] = tasks.splice(index, 1);
+  render();
+
+  showToast(`Задача «${shorten(removed.title)}» удалена`, {
+    label: 'Отменить',
+    run: () => {
+      tasks.splice(Math.min(index, tasks.length), 0, removed);
+      pendingFocus = { id: removed.id, selector: '[data-action="delete"]' };
+      render();
+    },
+  });
+}
+
+/* =========================================================
+   Уведомления
+   ========================================================= */
+
+let toastTimer;
+
+function hideToast() {
+  refs.toast.classList.remove('toast--visible');
+}
+
+function showToast(message, action) {
+  if (!refs) return;
+  const children = [el('span', { text: message })];
+  if (action) {
+    children.push(el('button', {
+      className: 'toast__action',
+      text: action.label,
+      attrs: { type: 'button' },
+      on: {
+        click: () => {
+          hideToast();
+          action.run();
+        },
+      },
+    }));
+  }
+  refs.toast.replaceChildren(...children);
+  refs.toast.classList.add('toast--visible');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(hideToast, action ? 5000 : 2200);
+}
+
+/* =========================================================
+   Обработчики
+   ========================================================= */
+
+function setupEvents() {
+  // Новая задача
+  refs.composer.addEventListener('submit', (event) => {
+    event.preventDefault();
+    const title = refs.titleInput.value.trim();
+    if (!title) {
+      refs.composerError.textContent = 'Введите название задачи';
+      refs.titleInput.setAttribute('aria-invalid', 'true');
+      refs.titleInput.focus();
+      return;
+    }
+    addTask(title, refs.dateInput.value);
+    refs.composer.reset();
+    refs.titleInput.focus();
+  });
+
+  refs.titleInput.addEventListener('input', () => {
+    refs.composerError.textContent = '';
+    refs.titleInput.removeAttribute('aria-invalid');
+  });
+
+  // Кнопки внутри задач (делегирование)
+  refs.list.addEventListener('click', (event) => {
+    const button = event.target.closest('[data-action]');
+    const item = event.target.closest('.task');
+    if (!button || !item) return;
+    const { id } = item.dataset;
+
+    if (button.dataset.action === 'delete') deleteTask(id);
+  });
+
 }
 
 /* =========================================================
@@ -141,4 +380,5 @@ function buildLayout() {
 
 connectStyles();
 refs = buildLayout();
-refs.counter.textContent = 'Задач пока нет';
+setupEvents();
+render();
