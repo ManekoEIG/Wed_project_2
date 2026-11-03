@@ -263,6 +263,48 @@ button, input, select { font: inherit; color: inherit; }
   cursor: pointer;
 }
 
+/* Переключатель фильтра */
+.segmented {
+  display: flex;
+  border: 2px solid var(--carbon);
+  background: var(--white);
+}
+
+.segmented__button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-height: 40px;
+  padding: 6px 12px;
+  border: none;
+  background: transparent;
+  font-weight: 600;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.segmented__button + .segmented__button { border-left: 1px solid var(--line); }
+
+.segmented__button:hover { background: var(--bg); }
+
+.segmented__button[aria-pressed="true"] {
+  background: var(--carbon);
+  color: var(--white);
+}
+
+.segmented__count {
+  min-width: 22px;
+  padding: 0 5px;
+  background: var(--bg);
+  color: var(--carbon);
+  font-size: .78rem;
+  font-style: italic;
+  font-weight: 800;
+}
+
+.segmented__button[aria-pressed="true"] .segmented__count { background: var(--red); color: var(--white); }
+
 /* ---------- Список задач ---------- */
 .tasks { margin-top: 24px; }
 .toolbar + .tasks { margin-top: 0; }
@@ -514,6 +556,12 @@ button, input, select { font: inherit; color: inherit; }
   .toolbar .sort { grid-column: 1; }
   .sort { grid-template-columns: auto 1fr; align-items: center; gap: 10px; }
 
+  .segmented__button {
+    flex: 1;
+    padding-inline: 6px;
+    font-size: .9rem;
+  }
+
   .task { gap: 8px; padding-right: 4px; }
   .task__title { font-size: 1rem; }
   .icon-button { width: 36px; height: 36px; }
@@ -521,6 +569,10 @@ button, input, select { font: inherit; color: inherit; }
   .task--editing { padding: 12px; }
   .task__edit { grid-template-columns: 1fr; }
   .task__edit-actions .button { flex: 1; }
+}
+
+@media (max-width: 360px) {
+  .segmented__count { display: none; }
 }
 
 @media (prefers-reduced-motion: reduce) {

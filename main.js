@@ -9,6 +9,12 @@
 const STORAGE_KEY = 'pitlist-tasks';
 const UI_KEY = 'pitlist-ui';
 
+const FILTERS = [
+  { value: 'all', label: 'Все' },
+  { value: 'active', label: 'Активные' },
+  { value: 'done', label: 'Выполненные' },
+];
+
 const SORTS = [
   { value: 'manual', label: 'Мой порядок' },
   { value: 'asc', label: 'Сначала ранние' },
@@ -152,10 +158,11 @@ function loadUI() {
   try {
     const data = JSON.parse(localStorage.getItem(UI_KEY)) || {};
     return {
+      filter: FILTERS.some((f) => f.value === data.filter) ? data.filter : 'all',
       sort: SORTS.some((s) => s.value === data.sort) ? data.sort : 'manual',
     };
   } catch {
-    return { sort: 'manual' };
+    return { filter: 'all', sort: 'manual' };
   }
 }
 
@@ -239,6 +246,16 @@ function buildLayout() {
     el('h2', { className: 'visually-hidden', text: 'Новая задача', attrs: { id: 'composer-title' } }),
     composer);
 
+  /* ---------- Фильтр по статусу ---------- */
+  const filterButtons = FILTERS.map((f) => el('button', {
+    className: 'segmented__button',
+    attrs: { type: 'button', 'aria-pressed': String(ui.filter === f.value) },
+    dataset: { filter: f.value },
+  }, el('span', { text: f.label }), el('span', { className: 'segmented__count' })));
+
+  const filters = el('div', { className: 'segmented', attrs: { role: 'group', 'aria-label': 'Фильтр по статусу' } },
+    ...filterButtons);
+
   /* ---------- Сортировка ---------- */
   const sortSelect = el('select', { className: 'sort__select', attrs: { id: 'sort' } },
     ...SORTS.map((s) => el('option', { text: s.label, attrs: { value: s.value } })));
@@ -249,6 +266,7 @@ function buildLayout() {
     sortSelect);
 
   const toolbar = el('section', { className: 'toolbar', attrs: { 'aria-label': 'Работа со списком' } });
+  toolbar.append(filters);
   toolbar.append(sort);
 
   /* ---------- Список ---------- */
@@ -279,6 +297,7 @@ function buildLayout() {
     toast,
     progressBar,
     sortSelect,
+    filterButtons,
   };
 }
 
@@ -287,7 +306,7 @@ function buildLayout() {
    ========================================================= */
 
 function getVisibleTasks() {
-  let list = tasks.slice();
+  let list = tasks.filter((t) => ui.filter === 'all' || (ui.filter === 'done') === t.done);
 
   if (ui.sort !== 'manual') list = [...list].sort(compareByDate(ui.sort));
   return list;
@@ -420,9 +439,26 @@ function renderEmptyState(visibleCount) {
   }
 
   refs.empty.hidden = false;
+  if (tasks.length === 0) {
+    refs.empty.replaceChildren(
+      el('p', { className: 'empty__title', text: 'Список пуст' }),
+      el('p', { text: 'Добавьте первую задачу в форме выше.' }));
+    return;
+  }
+
+  const filterNames = { active: 'активных ', done: 'выполненных ' };
+  let text = 'Нет задач, подходящих под условия.';
+  if (ui.filter !== 'all') text = `Нет ${filterNames[ui.filter]}задач.`;
+
   refs.empty.replaceChildren(
-    el('p', { className: 'empty__title', text: 'Список пуст' }),
-    el('p', { text: 'Добавьте первую задачу в форме выше.' }));
+    el('p', { className: 'empty__title', text: 'Ничего не найдено' }),
+    el('p', { text }),
+    el('button', {
+      className: 'button button--ghost',
+      text: 'Показать все задачи',
+      attrs: { type: 'button' },
+      on: { click: resetView },
+    }));
 }
 
 function renderHeader() {
@@ -436,6 +472,13 @@ function renderHeader() {
 
   // Ширина полосы прогресса задаётся из JS
   refs.progressBar.style.width = `${total ? Math.round((done / total) * 100) : 0}%`;
+
+  const counts = { all: total, active, done };
+  refs.filterButtons.forEach((button) => {
+    const { filter } = button.dataset;
+    button.setAttribute('aria-pressed', String(ui.filter === filter));
+    button.querySelector('.segmented__count').textContent = counts[filter];
+  });
 
 }
 
@@ -465,7 +508,11 @@ function addTask(title, date) {
   const task = makeTask(title, date);
   tasks.unshift(task);
 
+  // Чтобы новая задача не пропала из вида
+  if (ui.filter === 'done') ui.filter = 'all';
+
   saveTasks();
+  saveUI();
   render();
   showToast('Задача добавлена');
 }
@@ -522,6 +569,12 @@ function startEdit(id) {
 function cancelEdit(id) {
   editingId = null;
   pendingFocus = { id, selector: '[data-action="edit"]' };
+  render();
+}
+
+function resetView() {
+  ui.filter = 'all';
+  saveUI();
   render();
 }
 
@@ -603,6 +656,15 @@ function setupEvents() {
   refs.list.addEventListener('dblclick', (event) => {
     const title = event.target.closest('.task__title');
     if (title) startEdit(title.closest('.task').dataset.id);
+  });
+
+  // Фильтр
+  refs.filterButtons.forEach((button) => {
+    button.addEventListener('click', () => {
+      ui.filter = button.dataset.filter;
+      saveUI();
+      render();
+    });
   });
 
   // Сортировка
